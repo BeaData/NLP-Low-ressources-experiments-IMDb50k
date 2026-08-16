@@ -9,28 +9,12 @@ def plot_confusion_matrices(results):
     """
     Plot confusion matrices for each training set size.
 
-    The function displays up to four matrices in a 2 x 2 grid.
-    It supports results containing an optional "Experiment"
-    column.
+    For each training size, the matrices are displayed
+    two at a time in a one-row, two-column layout.
 
-    Parameters
-    ----------
-    results : pandas.DataFrame
-        Evaluation results containing:
-        - Train size
-        - y_true
-        - y_pred
-        - Vectorizer
-        - Classifier
-
-        The following column is optional:
-        - Experiment
+    This layout provides more space for datasets with
+    many classes, such as DBpedia.
     """
-
-    labels = {
-        0: "Negative",
-        1: "Positive",
-    }
 
     for dataset_size in sorted(
         results["Train size"].unique()
@@ -40,54 +24,103 @@ def plot_confusion_matrices(results):
             results["Train size"] == dataset_size
         ].reset_index(drop=True)
 
-        fig, axes = plt.subplots(
-            2,
-            2,
-            figsize=(12, 9.5),
-        )
+        # -------------------------------------------------
+        # Display two confusion matrices per figure
+        # -------------------------------------------------
 
-        fig.suptitle(
-            f"Confusion Matrices - "
-            f"Training Size {dataset_size}",
-            fontsize=18,
-            fontweight="bold",
-        )
+        for start_index in range(0, len(subset), 2):
 
-        axes = axes.flatten()
+            current_subset = subset.iloc[
+                start_index:start_index + 2
+            ].reset_index(drop=True)
 
-        for index, ax in enumerate(axes):
+            fig = plt.figure(figsize=(16, 8.5))
 
-            if index >= len(subset):
-
-                ax.set_visible(False)
-                continue
-
-            row = subset.iloc[index]
-
-            ConfusionMatrixDisplay.from_predictions(
-                row["y_true"],
-                row["y_pred"],
-                ax=ax,
-                colorbar=False,
-                display_labels=list(
-                    labels.values()
-                ),
+            grid = fig.add_gridspec(
+                1,
+                3,
+                width_ratios=[1, 0.42, 1],
             )
 
-            title = (
-                f"{row['Vectorizer']}\n"
-                f"{row['Classifier']}"
+            left_ax = fig.add_subplot(grid[0, 0])
+            legend_ax = fig.add_subplot(grid[0, 1])
+            right_ax = fig.add_subplot(grid[0, 2])
+
+            axes = [left_ax, right_ax]
+
+            labels = {
+                0: "Company",
+                1: "Educational Institution",
+                2: "Artist",
+                3: "Athlete",
+                4: "Office Holder",
+                5: "Mean Of Transportation",
+                6: "Building",
+                7: "Natural Place",
+                8: "Village",
+                9: "Animal",
+                10: "Plant",
+                11: "Album",
+                12: "Film",
+                13: "Written Work",
+            }
+
+            legend_ax.axis("off")
+
+            legend_text = "\n".join(
+                [
+                    f"{label}: {name}"
+                    for label, name in labels.items()
+                ]
             )
 
-            if "Experiment" in row.index:
+            legend_ax.text(
+                0.5,
+                0.5,
+                legend_text,
+                ha="center",
+                va="center",
+                fontsize=10,
+                linespacing=1.5,
+            )
 
-                title += (f"\n({row['Experiment']})")
+            fig.suptitle(
+                (f"Confusion Matrices - Training Size {dataset_size}"),
+                fontsize=18,
+                fontweight="bold",
+            )
 
-            ax.set_title(title, fontsize=14,  pad=8)
+            for index, ax in enumerate(axes):
 
-        fig.tight_layout(rect=[0, 0, 1, 0.95],
-                         h_pad=2.75,)
-        plt.show()
+                if index >= len(current_subset):
+
+                    ax.set_visible(False)
+                    continue
+
+                row = current_subset.iloc[index]
+
+                ConfusionMatrixDisplay.from_predictions(
+                    row["y_true"],
+                    row["y_pred"],
+                    ax=ax,
+                    colorbar=False,
+                    values_format="d",
+                )
+
+                title = (
+                    f"{row['Vectorizer']}\n"
+                    f"{row['Classifier']}"
+                )
+
+                if "Experiment" in row.index:
+
+                    title += (f"\n({row['Experiment']})")
+
+                ax.set_title(title, fontsize=14, pad=10)
+                ax.tick_params(axis="both", labelsize=9)
+
+            fig.tight_layout(rect=[0, 0, 1, 0.93])
+            plt.show()
 
 
 def plot_best_by_size(winners_df):
@@ -376,20 +409,19 @@ def plot_v6_confusion_matrices(results):
     """
     Plot confusion matrices separately for each V6 experiment.
 
-    One figure is produced per experiment.
-    Each figure contains one matrix per training size.
-    """
+    One figure is produced for each pair of confusion matrices.
+    Matrices are displayed two at a time with a central legend
+    containing the DBpedia class labels.
 
-    # labels = {
-    #     1: "World",
-    #     2: "Sports",
-    #     3: "Business",
-    #     4: "Sci/Tech",
-    # }
-    labels = {
-        0: "Negative",
-        1: "Positive",
-    }
+    Parameters
+    ----------
+    results : pandas.DataFrame
+        Evaluation results containing:
+        - Experiment
+        - Train size
+        - y_true
+        - y_pred
+    """
 
     for experiment in sorted(results["Experiment"].unique()):
 
@@ -397,51 +429,113 @@ def plot_v6_confusion_matrices(results):
             results["Experiment"] == experiment
         ].sort_values("Train size").reset_index(drop=True)
 
-        n_results = len(subset)
-        n_columns = 3 if n_results > 4 else 2
-        n_rows = (n_results + n_columns - 1) // n_columns
+        # -------------------------------------------------
+        # Display two confusion matrices per figure
+        # -------------------------------------------------
 
-        fig, axes = plt.subplots(
-            n_rows,
-            n_columns,
-            figsize=(12, 4.5 * n_rows),
-            squeeze=False,
-        )
+        for start_index in range(0, len(subset), 2):
 
-        axes = axes.flatten()
+            current_subset = subset.iloc[
+                start_index:start_index + 2
+            ].reset_index(drop=True)
 
-        fig.suptitle(
-            f"{experiment} - Confusion Matrices",
-            fontsize=16,
-            fontweight="bold",
-        )
+            fig = plt.figure(figsize=(16, 8.5))
 
-        for index, row in subset.iterrows():
-
-            ax = axes[index]
-
-            ConfusionMatrixDisplay.from_predictions(
-                row["y_true"],
-                row["y_pred"],
-                ax=ax,
-                colorbar=False,
-                display_labels=list(
-                    labels.values()
-                ),
+            grid = fig.add_gridspec(
+                1,
+                3,
+                width_ratios=[1, 0.42, 1],
             )
 
-            ax.set_title(
-                f"Training size: {row['Train size']}",
-                fontsize=12,
-                pad=8,
+            left_ax = fig.add_subplot(grid[0, 0])
+            legend_ax = fig.add_subplot(grid[0, 1])
+            right_ax = fig.add_subplot(grid[0, 2])
+
+            axes = [left_ax, right_ax]
+
+            # -------------------------------------------------
+            # DBpedia class labels
+            # -------------------------------------------------
+
+            labels = {
+                0: "Company",
+                1: "Educational Institution",
+                2: "Artist",
+                3: "Athlete",
+                4: "Office Holder",
+                5: "Mean Of Transportation",
+                6: "Building",
+                7: "Natural Place",
+                8: "Village",
+                9: "Animal",
+                10: "Plant",
+                11: "Album",
+                12: "Film",
+                13: "Written Work",
+            }
+
+            legend_ax.axis(
+                "off"
             )
 
-        for index in range(n_results, len(axes)):
+            legend_text = "\n".join(
+                [
+                    f"{label}: {name}"
+                    for label, name in labels.items()
+                ]
+            )
 
-            axes[index].set_visible(False)
+            legend_ax.text(
+                0.5,
+                0.5,
+                legend_text,
+                ha="center",
+                va="center",
+                fontsize=10,
+                linespacing=1.5,
+            )
 
-        fig.tight_layout(rect=[0, 0, 1, 0.95])
-        plt.show()
+            # -------------------------------------------------
+            # Figure title
+            # -------------------------------------------------
+
+            fig.suptitle(
+                (f"{experiment} - Confusion Matrices"),
+                fontsize=18,
+                fontweight="bold",
+            )
+
+            # -------------------------------------------------
+            # Confusion matrices
+            # -------------------------------------------------
+
+            for index, ax in enumerate(axes):
+
+                if index >= len(current_subset):
+
+                    ax.set_visible(False)
+                    continue
+
+                row = current_subset.iloc[index]
+
+                ConfusionMatrixDisplay.from_predictions(
+                    row["y_true"],
+                    row["y_pred"],
+                    ax=ax,
+                    colorbar=False,
+                    values_format="d",
+                )
+
+                ax.set_title(
+                    (f"Training size: {row['Train size']}"),
+                    fontsize=14,
+                    pad=10,
+                )
+
+                ax.tick_params(axis="both", labelsize=9)
+
+            fig.tight_layout(rect=[0, 0, 1, 0.93])
+            plt.show()
 
 
 def plot_embedding_performance(results):
@@ -488,7 +582,7 @@ def plot_embedding_performance(results):
         )
 
     ax.set_title(
-        "Sentence Embeddings Performance Evolution",
+        "Embeddings Performance Evolution",
         fontsize=16,
         fontweight="bold",
     )
